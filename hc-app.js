@@ -26,6 +26,7 @@ const UPDATED = {
   'settings-support': ['art-0','art-1','art-2','art-3'],
   hosting: ['art-0','art-1','art-2','art-3','art-4','art-5','art-6','art-7','art-8','art-9'],
   elements: ['art-0','art-1','art-2','art-3','art-4','art-5','art-7','art-8','art-9'],
+  monetize: ['art-0','art-1','art-2'],
   webinars: ['art-0'],
   meetings: ['art-a','art-b','art-c','art-d','art-e'],
   integrations: ["art-0","art-1","art-2","art-3","art-4","art-5","art-6","art-7","art-8","art-9","art-10","art-11","art-12","art-13"],
@@ -39,8 +40,16 @@ const ARTS = window.HC_ARTICLES;
 const CAT_BY_ID = Object.fromEntries(CATS.map(c => [c.id, c]));
 
 /* ===================== ROUTER ===================== */
+/* Old addresses of articles that moved to another category. */
+const MOVED = {
+  'elements/art-6':  'monetize/art-0',  // Creating Contracts
+  'elements/art-10': 'monetize/art-1',  // Launching Contracts in a LIVE Session
+  'elements/art-11': 'monetize/art-2'   // Sending Contracts Outside of LIVE Session
+};
+
 function parseHash() {
-  const h = (location.hash || '').replace(/^#/, '');
+  let h = (location.hash || '').replace(/^#/, '');
+  if (MOVED[h]) { h = MOVED[h]; history.replaceState(null, '', '#' + h); }
   if (!h) return { view: 'hub' };
   const [cat, art] = h.split('/');
   if (!CAT_BY_ID[cat]) return { view: 'hub' };
