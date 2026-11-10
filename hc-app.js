@@ -65,6 +65,7 @@ function navigate(hash) {
 }
 
 function render() {
+  setCvMenu(false, { restoreFocus: false });
   const route = parseHash();
   const hub = document.getElementById('hub-view');
   const cat = document.getElementById('cat-view');
@@ -250,6 +251,7 @@ function renderCategoryView(catId, artId) {
   if (!arts.length) {
     // Coming-soon category — show a message
     document.getElementById('cvSidebar').innerHTML = sidebarHTML(cat, null);
+    updateMenuBar(cat, arts);
     document.getElementById('cvMain').innerHTML = `
       <div class="cv-eyebrow"><span class="dot" style="background:${cat.color}"></span>${escapeHtml(cat.name)}</div>
       <h1 class="cv-h1">Coming soon</h1>
@@ -281,6 +283,7 @@ function renderCategoryView(catId, artId) {
 
   // Sidebar
   document.getElementById('cvSidebar').innerHTML = sidebarHTML(cat, art);
+  updateMenuBar(cat, arts);
 
   // Article body
   let pi = artIdx - 1; while (arts[pi] && arts[pi].soon) pi--;
@@ -315,7 +318,8 @@ function renderCategoryView(catId, artId) {
 
 function sidebarHTML(activeCat, activeArt) {
   const arts = ARTS[activeCat.id] || [];
-  let html = `<div class="cv-hlabel"><span class="cv-cat-color" style="background:${activeCat.color}"></span>${escapeHtml(activeCat.name)}</div>`;
+  let html = `<div class="cv-sl-head"><span>Browse articles</span><button type="button" class="cv-sl-close" data-cv-close aria-label="Close menu"><svg viewBox="0 0 24 24" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button></div>`;
+  html += `<div class="cv-hlabel"><span class="cv-cat-color" style="background:${activeCat.color}"></span>${escapeHtml(activeCat.name)}</div>`;
   html += '<div class="cv-arts">';
   arts.forEach((a, ai) => {
     const letter = String(ai);
@@ -432,6 +436,79 @@ function updateBreadcrumb(cat, art) {
     <a href="#${cat.id}" class="${art ? '' : 'n-bc-cur'}">${escapeHtml(cat.name)}</a>
     ${art ? `<span class="sep">/</span><span class="n-bc-cur">${escapeHtml(art.title)}</span>` : ''}
   `;
+}
+
+/* ===================== PHONE: CATEGORY MENU DRAWER ===================== */
+// On phones the article comes first. The bar above it names the category and
+// opens the category menu (#cvSidebar) as a drawer; on wider screens it stays a sidebar.
+const cvMenuBtn = document.getElementById('cvMenuBtn');
+const cvSidebarEl = document.getElementById('cvSidebar');
+const cvScrim = document.getElementById('cvScrim');
+const PHONE_LAYOUT = window.matchMedia('(max-width: 780px)');
+const CV_MENU_BACKGROUND = ['.rs-topbar', '#cvMenuBtn', '#cvMain', '#cvToc', '.hc-global-foot'];
+
+function updateMenuBar(cat, arts) {
+  const ready = arts.filter(a => !a.soon).length;
+  document.getElementById('cvMbarCat').textContent = cat.name;
+  document.getElementById('cvMbarArt').textContent = ready ? `${ready} article${ready === 1 ? '' : 's'}` : 'Coming soon';
+}
+
+function isCvMenuOpen() {
+  return document.documentElement.classList.contains('cv-menu-open');
+}
+
+function setCvMenu(open, { restoreFocus = true } = {}) {
+  if (!cvMenuBtn || open === isCvMenuOpen()) return;
+  document.documentElement.classList.toggle('cv-menu-open', open);
+  cvMenuBtn.setAttribute('aria-expanded', String(open));
+  cvScrim.hidden = !open;
+  if (open) {
+    // While open, the drawer is the only part of the page people can reach.
+    syncCvSidebarInert();
+    cvSidebarEl.setAttribute('role', 'dialog');
+    cvSidebarEl.setAttribute('aria-modal', 'true');
+    const current = cvSidebarEl.querySelector('.cv-art.active') || cvSidebarEl.querySelector('.cv-sl-close');
+    if (current) {
+      // Start on the article you're reading, without moving the page underneath.
+      cvSidebarEl.scrollTop = Math.max(0, current.offsetTop - cvSidebarEl.clientHeight / 3);
+      current.focus({ preventScroll: true });
+    }
+    // Focus moves first: making the focused menu button inert would drop focus to the page.
+    setCvMenuBackgroundInert(true);
+  } else {
+    cvSidebarEl.removeAttribute('role');
+    cvSidebarEl.removeAttribute('aria-modal');
+    setCvMenuBackgroundInert(false);
+    if (restoreFocus) cvMenuBtn.focus({ preventScroll: true });
+    syncCvSidebarInert();
+  }
+}
+
+// On phones a closed drawer is off screen: keep its links out of reach until it opens.
+function syncCvSidebarInert() {
+  cvSidebarEl.inert = PHONE_LAYOUT.matches && !isCvMenuOpen();
+}
+
+function setCvMenuBackgroundInert(inert) {
+  CV_MENU_BACKGROUND.forEach(sel => document.querySelectorAll(sel).forEach(el => { el.inert = inert; }));
+}
+
+if (cvMenuBtn) {
+  cvMenuBtn.addEventListener('click', () => setCvMenu(true));
+  cvScrim.addEventListener('click', () => setCvMenu(false));
+  cvSidebarEl.addEventListener('click', e => {
+    if (e.target.closest('[data-cv-close]')) setCvMenu(false);
+    // Picking the article you're already on changes nothing else, so close here too.
+    else if (e.target.closest('a[href^="#"]')) setCvMenu(false, { restoreFocus: false });
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && isCvMenuOpen()) setCvMenu(false);
+  });
+  PHONE_LAYOUT.addEventListener('change', e => {
+    if (!e.matches) setCvMenu(false, { restoreFocus: false });
+    syncCvSidebarInert();
+  });
+  syncCvSidebarInert();
 }
 
 /* ===================== SEARCH ===================== */
