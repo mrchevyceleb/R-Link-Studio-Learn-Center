@@ -37,6 +37,14 @@ const hasVideo = (cat, a) => { const B = window.HC_ARTICLE_BODIES || {}; const L
 
 const CATS = window.HC_CATEGORIES.filter(c => !c.hidden);
 const ARTS = window.HC_ARTICLES;
+// Each article's generated plain text kept its source's HTML entities (&amp;, &nbsp;).
+// Decode them once, so search matches "Q&A" and result snippets read like the article.
+(() => {
+  const decoder = document.createElement('textarea');
+  Object.values(ARTS).forEach(list => list.forEach(a => {
+    if (a.text && a.text.includes('&')) { decoder.innerHTML = a.text; a.text = decoder.value; }
+  }));
+})();
 const CAT_BY_ID = Object.fromEntries(CATS.map(c => [c.id, c]));
 
 /* ===================== ROUTER ===================== */
@@ -1299,14 +1307,12 @@ function autolinkText(root) {
 function escRe(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}
 function escapeHtml(s){return (s+'').replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function highlight(s, q){
-  if (!q.trim()) return escapeHtml(s);
   const tokens = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
-  let out = escapeHtml(s);
-  tokens.forEach(t => {
-    const re = new RegExp('('+escRe(t)+')','gi');
-    out = out.replace(re, '<mark>$1</mark>');
-  });
-  return out;
+  if (!tokens.length) return escapeHtml(s);
+  // Find matches in the plain text, then escape each piece, so a highlight never lands inside
+  // an escaped character ("q&a" used to cut "&amp;" in half) or inside an earlier <mark>.
+  const re = new RegExp('(' + tokens.sort((a, b) => b.length - a.length).map(escRe).join('|') + ')', 'gi');
+  return String(s).split(re).map((part, i) => i % 2 ? `<mark>${escapeHtml(part)}</mark>` : escapeHtml(part)).join('');
 }
 
 /* Search UI bindings */
