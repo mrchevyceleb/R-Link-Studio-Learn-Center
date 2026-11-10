@@ -65,7 +65,7 @@ function navigate(hash) {
 }
 
 function render() {
-  setCvMenu(false, { restoreFocus: false });
+  setCvMenu(false);
   const route = parseHash();
   const hub = document.getElementById('hub-view');
   const cat = document.getElementById('cat-view');
@@ -457,7 +457,7 @@ function isCvMenuOpen() {
   return document.documentElement.classList.contains('cv-menu-open');
 }
 
-function setCvMenu(open, { restoreFocus = true } = {}) {
+function setCvMenu(open) {
   if (!cvMenuBtn || open === isCvMenuOpen()) return;
   document.documentElement.classList.toggle('cv-menu-open', open);
   cvMenuBtn.setAttribute('aria-expanded', String(open));
@@ -476,10 +476,13 @@ function setCvMenu(open, { restoreFocus = true } = {}) {
     // Focus moves first: making the focused menu button inert would drop focus to the page.
     setCvMenuBackgroundInert(true);
   } else {
+    // Focus never stays behind in the closed drawer: it goes back to the Browse button,
+    // which sits right above the article (on wide screens that button is hidden and focus stays put).
+    const hadFocus = cvSidebarEl.contains(document.activeElement);
     cvSidebarEl.removeAttribute('role');
     cvSidebarEl.removeAttribute('aria-modal');
     setCvMenuBackgroundInert(false);
-    if (restoreFocus) cvMenuBtn.focus({ preventScroll: true });
+    if (hadFocus) cvMenuBtn.focus({ preventScroll: true });
     syncCvSidebarInert();
   }
 }
@@ -497,15 +500,14 @@ if (cvMenuBtn) {
   cvMenuBtn.addEventListener('click', () => setCvMenu(true));
   cvScrim.addEventListener('click', () => setCvMenu(false));
   cvSidebarEl.addEventListener('click', e => {
-    if (e.target.closest('[data-cv-close]')) setCvMenu(false);
-    // Picking the article you're already on changes nothing else, so close here too.
-    else if (e.target.closest('a[href^="#"]')) setCvMenu(false, { restoreFocus: false });
+    // The close button, or any article or category link (including the one you're already on).
+    if (e.target.closest('[data-cv-close], a[href^="#"]')) setCvMenu(false);
   });
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape' && isCvMenuOpen()) setCvMenu(false);
   });
   PHONE_LAYOUT.addEventListener('change', e => {
-    if (!e.matches) setCvMenu(false, { restoreFocus: false });
+    if (!e.matches) setCvMenu(false);
     syncCvSidebarInert();
   });
   syncCvSidebarInert();
