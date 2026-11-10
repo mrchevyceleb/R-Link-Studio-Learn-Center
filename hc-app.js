@@ -484,9 +484,11 @@ function setCvMenu(open) {
     // Focus moves first: making the focused menu button inert would drop focus to the page.
     setCvMenuBackgroundInert(true);
   } else {
-    // Focus never stays behind in the closed drawer: it goes back to the Browse button,
-    // which sits right above the article (on wide screens that button is hidden and focus stays put).
-    const hadFocus = cvSidebarEl.contains(document.activeElement);
+    // Focus never stays behind in the closed drawer or gets lost (a tap on the scrim drops it to
+    // the page): it goes back to the Browse button, right above the article. On wide screens that
+    // button is hidden and focus stays put.
+    const active = document.activeElement;
+    const hadFocus = !active || active === document.body || cvSidebarEl.contains(active);
     cvSidebarEl.removeAttribute('role');
     cvSidebarEl.removeAttribute('aria-modal');
     setCvMenuBackgroundInert(false);
